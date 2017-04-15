@@ -1,0 +1,9 @@
+#!/bin/sh -eu
+
+# Copyright 2017 Yury Gribov
+#
+# Use of this source code is governed by MIT license that can be
+# found in the LICENSE.txt file.
+
+# TODO: fallback to gcc on error?
+exec /usr/bin/$(basename $0) "$@" -Qunused-arguments -Xclang -load -Xclang $(dirname $0)/../bin/PadWipe.so
