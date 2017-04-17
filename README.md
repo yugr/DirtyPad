@@ -1,7 +1,7 @@
 # What's this?
 
-StackWipe is a proof-of-concept tool which tries to provoke
-intra-struct buffer overflows (something that existing tools
+StackWipe is a proof-of-concept tool which tries to provoke errors
+on read overflows in structure fields (something that existing tools
 e.g. AddressSanitizer are not capable of).
 
 The idea is to fill struct pads with garbage whenever
