@@ -153,8 +153,7 @@ bool InstrumentAllocas::instrumentAlloca(AllocaInst &I, const DataLayout &DL) {
 
   LLVMContext &C = I.getModule()->getContext();
 
-  IRBuilder<> IRB(C);
-  IRB.SetInsertPoint(I.getNextNode());
+  IRBuilder<> IRB(I.getNextNode());
   WritePads(&I, Pads, IRB, C);
 
   return true;
@@ -229,12 +228,8 @@ bool InstrumentMallocs::instrumentBitCast(BitCastInst &I, const DataLayout &DL,
   if (!GetPads(STy, Pads, DL))
     return false;
 
-  LLVMContext &C = I.getModule()->getContext();
-
   Instruction *Next = I.getNextNode();
-
-  IRBuilder<> IRB(C);
-  IRB.SetInsertPoint(Next);
+  IRBuilder<> IRB(Next);
 
   Value *Cmp = IRB.CreateIsNotNull(Ptr);
 
@@ -242,7 +237,7 @@ bool InstrumentMallocs::instrumentBitCast(BitCastInst &I, const DataLayout &DL,
     SplitBlockAndInsertIfThen(Cmp, Next, /*Unreachable*/false);
   IRB.SetInsertPoint(JmpBack);
 
-  WritePads(&I, Pads, IRB, C);
+  WritePads(&I, Pads, IRB, I.getModule()->getContext());
 
   return true;
 }
