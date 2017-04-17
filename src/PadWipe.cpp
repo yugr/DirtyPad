@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include <tuple>
+
 using namespace llvm;
 
 namespace {
@@ -72,8 +74,11 @@ namespace {
 
 static unsigned char Magic = 0xcd;
 
+typedef SmallVectorImpl<std::pair<unsigned, unsigned> > PadVectorImpl;
+typedef SmallVector<std::pair<unsigned, unsigned>, 10> PadVector;
+
 // TODO: cache results
-static void GetPads_1(StructType *Ty, SmallVectorImpl<unsigned> &Pads,
+static void GetPads_1(StructType *Ty, PadVectorImpl &Pads,
                       unsigned Base, unsigned StructSize,
                       const DataLayout &DL) {
   const StructLayout *SL = DL.getStructLayout(Ty);
@@ -92,27 +97,25 @@ static void GetPads_1(StructType *Ty, SmallVectorImpl<unsigned> &Pads,
       // Handle other fields
       unsigned Size = DL.getTypeStoreSize(ETy);  // FIXME: getTypeAllocSize ?
       unsigned PadOffset = Base + SL->getElementOffset(I) + Size;
-      if (unsigned PadSize = NextOffset - PadOffset) {
-        Pads.push_back(PadOffset);
-        Pads.push_back(PadSize);
-      }
+      if (unsigned PadSize = NextOffset - PadOffset)
+        Pads.push_back(std::make_pair(PadOffset, PadSize));
     }
   }
 }
 
 static bool GetPads(StructType *Ty,
-                    SmallVectorImpl<unsigned> &Pads, const DataLayout &DL) {
+                    PadVectorImpl &Pads, const DataLayout &DL) {
   Pads.clear();
   GetPads_1(Ty, Pads, 0, DL.getTypeStoreSize(Ty), DL);
   return !Pads.empty();
 }
 
-static void WritePads(Value *S, SmallVectorImpl<unsigned> &Pads,
+static void WritePads(Value *S, PadVectorImpl &Pads,
                       IRBuilder<> &IRB, LLVMContext &C) {
   Value *BC = IRB.CreateBitCast(S, Type::getInt8PtrTy(C));
-  for (unsigned J = 0, N = Pads.size(); J < N; J += 2) {
-    unsigned Offset = Pads[J],
-      Size = Pads[J + 1];
+  for (unsigned J = 0, N = Pads.size(); J < N; ++J) {
+    unsigned Offset = Pads[J].first,
+      Size = Pads[J].second;
     Value *Pad = IRB.CreateAdd(BC, IRB.getInt32(Offset));
     IRB.CreateMemSet(Pad, IRB.getInt8(Magic), Size, /*isVolatile*/1);
   }
@@ -146,7 +149,7 @@ bool InstrumentAllocas::instrumentAlloca(AllocaInst &I, const DataLayout &DL) {
   if (!STy)
     return false;
 
-  SmallVector<unsigned, 10> Pads;
+  PadVector Pads;
   if (!GetPads(STy, Pads, DL))
     return false;
 
@@ -221,7 +224,7 @@ bool InstrumentMallocs::instrumentBitCast(BitCastInst &I, const DataLayout &DL,
   if (!IsMallocated(Ptr, TLI))
     return false;
 
-  SmallVector<unsigned, 10> Pads;
+  PadVector Pads;
   if (!GetPads(STy, Pads, DL))
     return false;
 
@@ -279,7 +282,7 @@ bool InstrumentGlobals::runOnModule(Module &M) {
 
     auto *Ty = dyn_cast<StructType>(GV->getValueType());
 
-    SmallVector<unsigned, 10> Pads;
+    PadVector Pads;
     if (!GetPads(Ty, Pads, DL))
       continue;
 
