@@ -15,6 +15,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/IR/InstVisitor.h"
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -120,17 +121,15 @@ static void WritePads(Value *S, SmallVectorImpl<unsigned> &Pads,
 bool InstrumentAllocas::runOnFunction(Function &F) {
   DEBUG(errs() << "Hello from runOnModule\n");
 
-  SmallVector<AllocaInst *, 10> AIs;
-  for (auto &BB : F) {
-    for (auto &I : BB) {
-      if (auto *AI = dyn_cast<AllocaInst>(&I))
-        AIs.push_back(AI);
-    }
-  }
+  struct AllocaFinder : public InstVisitor<AllocaFinder> {
+    SmallVector<AllocaInst *, 10> Insts;
+    void visitAllocaInst(AllocaInst &AI) { Insts.push_back(&AI); }
+  } AF;
+  AF.visit(F);
 
   bool Changed = false;
   const DataLayout &DL = F.getParent()->getDataLayout();
-  for (auto I : AIs)
+  for (auto I : AF.Insts)
     Changed |= instrumentAlloca(*I, DL);
 
   return Changed;
@@ -163,18 +162,16 @@ bool InstrumentMallocs::runOnFunction(Function &F) {
   DEBUG(errs() << "Hello from runOnModule\n");
   DEBUG(F.dump());
 
-  SmallVector<BitCastInst *, 10> BCIs;
-  for (auto &BB : F) {
-    for (auto &I : BB) {
-      if (auto *BCI = dyn_cast<BitCastInst>(&I))
-        BCIs.push_back(BCI);
-    }
-  }
+  struct BitCastFinder : public InstVisitor<BitCastFinder> {
+    SmallVector<BitCastInst *, 10> Insts;
+    void visitBitCastInst(BitCastInst &BCI) { Insts.push_back(&BCI); }
+  } BCF;
+  BCF.visit(F);
 
   bool Changed = false;
   const DataLayout &DL = F.getParent()->getDataLayout();
   auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
-  for (auto I : BCIs)
+  for (auto I : BCF.Insts)
     Changed |= instrumentBitCast(*I, DL, TLI);
 
   return Changed;
