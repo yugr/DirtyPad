@@ -24,6 +24,10 @@
 
 using namespace llvm;
 
+// LLVM's -debug machinery requires assertions
+// which are of course not available in distro Clang...
+#define MYDEBUG(x) //(x)
+
 namespace {
   class InstrumentAllocas : public FunctionPass {
     static char ID;
@@ -97,8 +101,10 @@ static void GetPads_1(StructType *Ty, PadVectorImpl &Pads,
       // Handle other fields
       unsigned Size = DL.getTypeStoreSize(ETy);  // FIXME: getTypeAllocSize ?
       unsigned PadOffset = Base + SL->getElementOffset(I) + Size;
-      if (unsigned PadSize = NextOffset - PadOffset)
+      if (unsigned PadSize = NextOffset - PadOffset) {
+        MYDEBUG(errs() << "  " << PadOffset << ": " << PadSize << " bytes\n");
         Pads.push_back(std::make_pair(PadOffset, PadSize));
+      }
     }
   }
 }
@@ -106,6 +112,9 @@ static void GetPads_1(StructType *Ty, PadVectorImpl &Pads,
 static bool GetPads(StructType *Ty,
                     PadVectorImpl &Pads, const DataLayout &DL) {
   Pads.clear();
+  MYDEBUG(errs() << "Paddings for type '"
+               << (Ty->hasName() ? Ty->getName() : "<unknown>")
+               << "'\n");
   GetPads_1(Ty, Pads, 0, DL.getTypeStoreSize(Ty), DL);
   return !Pads.empty();
 }
@@ -122,8 +131,6 @@ static void WritePads(Value *S, PadVectorImpl &Pads,
 }
 
 bool InstrumentAllocas::runOnFunction(Function &F) {
-  DEBUG(errs() << "Hello from runOnModule\n");
-
   struct AllocaFinder : public InstVisitor<AllocaFinder> {
     SmallVector<AllocaInst *, 10> Insts;
     void visitAllocaInst(AllocaInst &AI) { Insts.push_back(&AI); }
@@ -139,8 +146,6 @@ bool InstrumentAllocas::runOnFunction(Function &F) {
 }
 
 bool InstrumentAllocas::instrumentAlloca(AllocaInst &I, const DataLayout &DL) {
-  DEBUG(errs() << "Hello from instrumentAlloca\n");
-
   auto *CI = dyn_cast_or_null<ConstantInt>(I.getArraySize());
   if (!CI || CI->isZero())
     return false;
@@ -162,9 +167,6 @@ bool InstrumentAllocas::instrumentAlloca(AllocaInst &I, const DataLayout &DL) {
 }
 
 bool InstrumentMallocs::runOnFunction(Function &F) {
-  DEBUG(errs() << "Hello from runOnModule\n");
-  DEBUG(F.dump());
-
   struct BitCastFinder : public InstVisitor<BitCastFinder> {
     SmallVector<BitCastInst *, 10> Insts;
     void visitBitCastInst(BitCastInst &BCI) { Insts.push_back(&BCI); }
@@ -210,8 +212,6 @@ static bool IsMallocated(Value *V, TargetLibraryInfo&TLI) {
 
 bool InstrumentMallocs::instrumentBitCast(BitCastInst &I, const DataLayout &DL,
                                           TargetLibraryInfo &TLI) {
-  DEBUG(errs() << "Hello from instrumentBitCast\n");
-
   auto *PtrTy = dyn_cast_or_null<PointerType>(I.getDestTy());
   if (!PtrTy)
     return false;
@@ -322,7 +322,7 @@ static void registerInstrumentMallocs(const PassManagerBuilder &,
 
 // Need to run after mem2reg to have usedef info
 static RegisterStandardPasses RegisterMallocPass(
-  PassManagerBuilder::EP_ScalarOptimizerLate, registerInstrumentMallocs);
+  PassManagerBuilder::EP_EarlyAsPossible, registerInstrumentMallocs);
 
 static void registerInstrumentGlobals(const PassManagerBuilder &,
                                       legacy::PassManagerBase &PM) {
