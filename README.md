@@ -1,6 +1,6 @@
 # What's this?
 
-StackWipe is a proof-of-concept tool which tries to provoke errors
+DirtyPad is a proof-of-concept tool which tries to provoke errors
 on read overflows in structure fields (something that existing tools
 e.g. AddressSanitizer are not capable of).
 
@@ -17,7 +17,7 @@ To test, run `make check`.
 
 # How to run
 
-Add `-Xclang -load -Xclang path/to/PadWipe.so` to `CFLAGS`
+Add `-Xclang -load -Xclang path/to/DirtyPad.so` to `CFLAGS`
 and `CXXFLAGS`. Or alternatively, set `CC` and `CXX` to
 wrappers in `scripts/` folder.
 

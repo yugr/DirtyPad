@@ -1,7 +1,7 @@
 #!/bin/sh -eu
 
 CFLAGS='-g -O2'
-PLUGIN='-Xclang -load -Xclang ../bin/PadWipe.so'
+PLUGIN='-Xclang -load -Xclang ../bin/DirtyPad.so'
 
 cd $(dirname $0)
 

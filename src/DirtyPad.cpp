@@ -36,7 +36,7 @@ namespace {
     InstrumentAllocas(): FunctionPass(ID) {}
     bool runOnFunction(Function &F) override;
     const char *getPassName() const override {
-      return "PadWipe (instrument alloca)";
+      return "DirtyPad (instrument alloca)";
     }
   };
 
@@ -53,7 +53,7 @@ namespace {
       AU.addRequired<TargetLibraryInfoWrapperPass>();
     }
     const char *getPassName() const override {
-      return "PadWipe (instrument malloc)";
+      return "DirtyPad (instrument malloc)";
     }
   };
 
@@ -65,7 +65,7 @@ namespace {
     InstrumentGlobals(): ModulePass(ID) {}
     bool runOnModule(Module &M) override;
     const char *getPassName() const override {
-      return "PadWipe (instrument globals)";
+      return "DirtyPad (instrument globals)";
     }
   };
 
@@ -269,7 +269,7 @@ bool InstrumentGlobals::runOnModule(Module &M) {
 
   Function *Ctor = Function::Create(
     FunctionType::get(Type::getVoidTy(C), false),
-    GlobalValue::InternalLinkage, "PadWipe", &M);
+    GlobalValue::InternalLinkage, "DirtyPad", &M);
   BasicBlock *CtorBB = BasicBlock::Create(C, "", Ctor);
 
   appendToGlobalCtors(M, Ctor, INT32_MIN);

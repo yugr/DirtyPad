@@ -6,4 +6,4 @@
 # found in the LICENSE.txt file.
 
 # TODO: fallback to gcc on error?
-exec /usr/bin/$(basename $0) "$@" -Qunused-arguments -Xclang -load -Xclang $(dirname $0)/../bin/PadWipe.so
+exec /usr/bin/$(basename $0) "$@" -Qunused-arguments -Xclang -load -Xclang $(dirname $0)/../bin/DirtyPad.so
